@@ -1,6 +1,35 @@
 # test_rep_2
 
 ## 🐬Docker 사용법
+
+### 기본적인 docker 명령어 & hostNumber
+
+- 실행 명령: docker compose up --build
+
+- 종료 명령: docker compose down
+
+- 전체 로그 보기: docker compose logs -f
+
+- Python 확인: http://localhost:8000/health
+​
+- Spring 확인: http://localhost:8080
+
+- MySQL 접속 호스트: localhost:3306
+
+- Redis 접속 호스트: localhost:6379
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### 시스템 요구사항
 - Windows 11 64-bit (Pro 이상 권장): 23H2 빌드 이상.
 - 64-bit CPU (SLAT 지원), 4GB RAM 이상.
@@ -67,3 +96,5 @@ WSL 상태를 확인하려면 `wsl --status` 또는 `wsl --version`을 사용
 업데이트가 실패하면 Windows를 최신으로 업데이트하거나 `--web-download` 옵션을 추가하세요: `wsl --update --web-download`
 </div>
 </details>
+
+
