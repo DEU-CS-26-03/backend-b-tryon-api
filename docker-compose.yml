@@ -1,18 +1,26 @@
-version: '3.8'
+version: "3.9"
 
 services:
   mysql:
     image: mysql:8.0
     container_name: capstone-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: capstone_db
-      MYSQL_USER: capstone
-      MYSQL_PASSWORD: capstonepass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    networks:
+      - capstone-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -prootpassword || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   redis:
     image: redis:7-alpine
@@ -21,6 +29,13 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - capstone-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   spring-app:
     build:
@@ -29,10 +44,22 @@ services:
     container_name: capstone-spring
     ports:
       - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      PYTHON_SERVICE_URL: http://python-app:8000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      python-app:
+        condition: service_started
     networks:
       - capstone-net
-
-
 
   python-app:
     build:
@@ -43,10 +70,25 @@ services:
       - "8000:8000"
     environment:
       REDIS_URL: redis://redis:6379/0
+      APP_ENV: docker
+      TRYON_MODE: mock
+      WORKSPACE_DIR: /app/workspace
+    volumes:
+      - ./python/workspace:/app/workspace
+      - ./python/models:/app/models
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - capstone-net
+    # GPU 서버에서만 필요
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 volumes:
   mysql_data:
