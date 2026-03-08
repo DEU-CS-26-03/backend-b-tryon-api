@@ -16,7 +16,7 @@ services:
     networks:
       - capstone-net
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -prootpassword || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p${MYSQL_ROOT_PASSWORD} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -69,26 +69,21 @@ services:
     ports:
       - "8000:8000"
     environment:
+      APP_ENV: ${APP_ENV}
+      TRYON_MODE: ${TRYON_MODE}
       REDIS_URL: redis://redis:6379/0
-      APP_ENV: docker
-      TRYON_MODE: mock
       WORKSPACE_DIR: /app/workspace
+      MOCK_RESULT_IMAGE: /app/workspace/mock/mock_result.jpg
+      IDM_VTON_ROOT: /app/vton
     volumes:
       - ./python/workspace:/app/workspace
       - ./python/models:/app/models
+      - ./python/mock:/app/workspace/mock
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - capstone-net
-    # GPU 서버에서만 필요
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
 volumes:
   mysql_data:
