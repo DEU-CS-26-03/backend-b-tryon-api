@@ -1,7 +1,0 @@
-#Docker Compose 안에서는 http://python-app:8000, 로컬 단독 실행 시에는 기본값 http://localhost:8000
-server:
-  port: 8080
-
-python:
-  service:
-    url: ${PYTHON_SERVICE_URL:http://localhost:8000}
