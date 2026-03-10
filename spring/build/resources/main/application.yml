@@ -1,0 +1,19 @@
+#Docker Compose 안에서는 http://python-app:8000, 로컬 단독 실행 시에는 기본값 http://localhost:8000
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/capstone?useSSL=false&serverTimezone=UTC
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+server:
+  port: 8080
+
+
+  
+python:
+  service:
+    url: ${PYTHON_SERVICE_URL:http://localhost:8000}
