@@ -129,3 +129,7 @@ def root():
         "message": "Capstone Python AI Server",
         "tryon_mode": TRYON_MODE
     })
+
+
+app = FastAPI()
+app.include_router(router)
