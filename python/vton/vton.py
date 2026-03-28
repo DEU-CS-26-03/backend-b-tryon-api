@@ -1,13 +1,15 @@
 # python/vton/vton.py
 
 from pathlib import Path
-from typing import List
+import uuid
 
 import cv2
 import numpy as np
 from rembg import remove
 from PIL import Image
 
+from ..app.config import RESULTS_DIR, TryonMode, TRYON_MODE, WORKFLOW_JSON_PATH, COMFY_OUTPUT_PATH
+from .comfyui.client import run_catvton_and_copy
 from .external_vton_api import call_external_vton_api
 from ai.quality_model import QualityModel
 
@@ -35,11 +37,11 @@ def _resize_keep_aspect_cv2(img: np.ndarray, target_w: int, target_h: int) -> np
     if cr > tr:
         new_w = int(h * tr)
         sx = (w - new_w) // 2
-        cropped = img[:, sx:sx + new_w]
+        cropped = img[:, sx : sx + new_w]
     else:
         new_h = int(w / tr)
         sy = (h - new_h) // 2
-        cropped = img[sy:sy + new_h, :]
+        cropped = img[sy : sy + new_h, :]
     return cv2.resize(cropped, (target_w, target_h), interpolation=cv2.INTER_AREA)
 
 
@@ -66,6 +68,7 @@ def preprocess_cloth(cloth_path: str) -> str:
     pil_img = Image.open(str(p)).convert("RGBA")
     nobg = remove(pil_img)
     nobg_np = cv2.cvtColor(np.array(nobg), cv2.COLOR_RGBA2BGRA)
+
     nobg_np = _resize_keep_aspect_cv2(nobg_np, TARGET_WIDTH, TARGET_HEIGHT)
 
     out_path = DATA_DIR / "tmp" / f"{cloth_id}_cloth.png"
@@ -76,7 +79,7 @@ def preprocess_cloth(cloth_path: str) -> str:
 async def run_vton_external(person_pre_path: str, cloth_pre_path: str) -> str:
     """
     전처리된 이미지 경로를 받아 외부 VTON API를 호출하고,
-    결과 이미지를 DATA_DIR/results에 저장. [web:56][web:97][web:100]
+    결과 이미지를 DATA_DIR/results에 저장.
     """
     _ensure_dirs()
 
@@ -94,22 +97,74 @@ async def run_vton_external(person_pre_path: str, cloth_pre_path: str) -> str:
     return str(out_path)
 
 
-async def run_tryon_pipeline(person_path: str, cloth_path: str) -> str:
+async def run_vton_quality_pipeline(person_path: str, cloth_path: str) -> str:
     """
-    전체 파이프라인:
-    1) 이미지 전처리
-    2) 외부 VTON API 호출
-    3) TensorFlow 품질 모델로 후처리/선택 (후보 여러 개일 때) [web:64][web:103]
+    (선택용) 외부 VTON + 품질 모델을 쓰는 전체 파이프라인.
+    지금은 사용하지 않지만, 나중에 고도화용으로 남겨두기.
     """
     person_pre = preprocess_person(person_path)
     cloth_pre = preprocess_cloth(cloth_path)
 
-    # 1안: 단일 결과만 생성하는 API인 경우
     result_path = await run_vton_external(person_pre, cloth_pre)
     return result_path
-
-    # 2안(확장): API에서 여러 결과 후보를 얻는 경우
-    # candidate_paths: List[str] = [...]
+    # 확장 버전:
+    # candidate_paths: list[str] = [...]
     # q_model = QualityModel()
     # best_path, score = q_model.select_best(candidate_paths)
     # return best_path
+
+
+def _new_job_paths(ext: str = "png"):
+    job_id = str(uuid.uuid4())
+    job_dir = Path(RESULTS_DIR) / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    output_path = job_dir / f"output.{ext}"
+    return job_id, output_path
+
+
+def run_tryon_mock(request_dto):
+    """
+    TRYON_MODE=mock 일 때 사용하는 더미 파이프라인.
+    """
+    job_id, output_path = _new_job_paths("jpg")
+    mock_src = BASE_DIR / "mock" / "mock_result.jpg"
+    output_path.write_bytes(mock_src.read_bytes())
+    return job_id, f"/results/{job_id}/output.jpg"
+
+
+def run_tryon_real(request_dto):
+    human_path = Path(request_dto.human_local_path or request_dto.human_path)
+    cloth_path = Path(request_dto.cloth_local_path or request_dto.cloth_path)
+
+    if not human_path.is_file():
+        raise FileNotFoundError(f"human image not found: {human_path}")
+    if not cloth_path.is_file():
+        raise FileNotFoundError(f"cloth image not found: {cloth_path}")
+
+    job_id, output_path = _new_job_paths("png")
+    run_catvton_and_copy(
+        workflow_json_path=WORKFLOW_JSON_PATH,
+        comfy_output_path=COMFY_OUTPUT_PATH,
+        save_path=str(output_path),
+    )
+    return job_id, f"/results/{job_id}/output.png"
+
+
+def run_tryon_pipeline(request_dto):
+    """
+    FastAPI 서비스에서 사용하는 최종 파이프라인 진입점.
+    TRYON_MODE 에 따라 mock / real 모드를 분기해서 실행하고,
+    job_id, mode, result_path를 반환한다.
+    """
+    if TRYON_MODE == TryonMode.MOCK:
+        job_id, result_path = run_tryon_mock(request_dto)
+        mode = "mock"
+    else:
+        job_id, result_path = run_tryon_real(request_dto)
+        mode = "real"
+
+    return {
+        "job_id": job_id,
+        "mode": mode,
+        "result_path": result_path,
+    }

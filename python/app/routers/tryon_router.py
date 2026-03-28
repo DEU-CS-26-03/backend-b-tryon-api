@@ -1,21 +1,23 @@
 # python/app/routers/tryon_router.py
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, BackgroundTasks
 from fastapi.responses import FileResponse
+from ..schemas import TryonRequest, TryonResponse
+from ..service.tryon_service import run_tryon_service
+from ..config import BASE_URL
+from app.service.tryon_service import run_tryon_upload
 
-from app.service.tryon_service import run_tryon
+router = APIRouter(prefix="/tryon", tags=["tryon"])
 
-router = APIRouter()
+@router.post("", response_model=TryonResponse)
+async def tryon(body: TryonRequest):
+    result = run_tryon_service(body)
 
-@router.post("/tryon")
-async def tryon_endpoint(
-    user: UploadFile = File(...),
-    cloth: UploadFile = File(...),
-):
-    """
-    1) 이미지 업로드
-    2) 전처리 + 외부 VTON API + (TF 후처리)
-    3) 결과 이미지를 파일로 반환
-    """
-    result_path = await run_tryon(user, cloth)
-    return FileResponse(result_path, media_type="image/png")
+    result_path = result["result_path"]   # "/results/{job_id}/output.png"
+    result_url = f"{BASE_URL}{result_path}"
+
+    return {
+        "job_id": result["job_id"],
+        "mode": result["mode"],
+        "result_url": result_url,
+    }
