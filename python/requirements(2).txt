@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+celery
+redis
+
+rembg
+pillow
+opencv-python
+numpy
+
+torch
+torchvision
+yacs
+scipy
