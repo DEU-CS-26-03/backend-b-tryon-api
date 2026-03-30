@@ -1,5 +1,3 @@
-# test_rep_2
-
 ## 🐬Docker 사용법
 
 ### 기본적인 docker 명령어 & hostNumber
@@ -18,17 +16,12 @@
 
 - Redis 접속 호스트: localhost:6379
 
+## 🚀 Getting Started
 
-
-
-
-
-
-
-
-
-
-
+1. **Clone the repository**: `git clone https://github.com/[Your-Username]/CapStone_Docker_Compose_Setting.git`
+2. **Configure Environment**: Create a `.env` file in the root directory if environment variables are required for MySQL/Redis.
+3. **Build and Run**: Execute `docker compose up --build` to orchestrate the Java Spring, Python, and Database containers.
+4. **Verify Services**: Use the health check URLs provided above to ensure all microservices are running correctly.
 
 ### 시스템 요구사항
 - Windows 11 64-bit (Pro 이상 권장): 23H2 빌드 이상.
@@ -96,5 +89,3 @@ WSL 상태를 확인하려면 `wsl --status` 또는 `wsl --version`을 사용
 업데이트가 실패하면 Windows를 최신으로 업데이트하거나 `--web-download` 옵션을 추가하세요: `wsl --update --web-download`
 </div>
 </details>
-
-
