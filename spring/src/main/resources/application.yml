@@ -1,19 +1,25 @@
-#Docker Compose 안에서는 http://python-app:8000, 로컬 단독 실행 시에는 기본값 http://localhost:8000
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/capstone?useSSL=false&serverTimezone=UTC
-    username: root
-    password: password
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://${DB_HOST:capstone-mariadb}:${MARIA_PORT:3306}/${MARIA_DATABASE:capstone_db}?characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${MARIA_USER:capstone}
+    password: ${MARIA_PASSWORD:capstonepass}
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+
 server:
   port: 8080
 
-
-  
 python:
   service:
-    url: ${PYTHON_SERVICE_URL:http://localhost:8000}
+    url: ${PYTHON_SERVICE_URL:http://capstone-python:8000}
+
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-here-must-be-long-enough}
+  expiration: ${JWT_EXPIRATION:3600000}
