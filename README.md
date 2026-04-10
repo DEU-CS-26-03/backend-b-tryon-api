@@ -8,13 +8,106 @@ git clone https://github.com/Zheng-Chong/CatVTON.git .\vton\CatVTON
 
 FROM python:3.11-slim -> FROM python:3.10-slim 호환성 때문에 수정할것 같습니다.
 
-
-requeast하려면 다음과 같은 항목을 중점으로 체크하세요.
+#### 다음과 같은 파일 셋팅이 필요합니다.(중점적으로 체크하시면 됩니다.)
 1. compose-ai.yml
 2. Dockerfile
 3. .env(.env.example)
 4. vton/CatVTON/run_one.py
 
+```
+# vton/CatVTON/run_one.py 예시입니다.
+
+import argparse
+import os
+from datetime import datetime
+
+import torch
+from PIL import Image
+from diffusers.image_processor import VaeImageProcessor
+from huggingface_hub import snapshot_download
+
+from model.cloth_masker import AutoMasker
+from model.pipeline import CatVTONPipeline
+from utils import init_weight_dtype, resize_and_crop, resize_and_padding
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--person", type=str, required=True)
+    parser.add_argument("--cloth", type=str, required=True)
+    parser.add_argument("--cloth_type", type=str, default="upper", choices=["upper", "lower", "overall"])
+    parser.add_argument("--output", type=str, default="/app/workspace/results")
+    parser.add_argument("--base_model_path", type=str, default="runwayml/stable-diffusion-inpainting")
+    parser.add_argument("--resume_path", type=str, default="zhengchong/CatVTON")
+    parser.add_argument("--width", type=int, default=768)
+    parser.add_argument("--height", type=int, default=1024)
+    parser.add_argument("--steps", type=int, default=50)
+    parser.add_argument("--cfg", type=float, default=2.5)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--mixed_precision", type=str, default="bf16", choices=["no", "fp16", "bf16"])
+    parser.add_argument("--allow_tf32", action="store_true")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    os.makedirs(args.output, exist_ok=True)
+
+    repo_path = snapshot_download(repo_id=args.resume_path)
+
+    pipeline = CatVTONPipeline(
+        base_ckpt=args.base_model_path,
+        attn_ckpt=repo_path,
+        attn_ckpt_version="mix",
+        weight_dtype=init_weight_dtype(args.mixed_precision),
+        use_tf32=args.allow_tf32,
+        device="cuda"
+    )
+
+    mask_processor = VaeImageProcessor(
+        vae_scale_factor=8,
+        do_normalize=False,
+        do_binarize=True,
+        do_convert_grayscale=True
+    )
+
+    automasker = AutoMasker(
+        densepose_ckpt=os.path.join(repo_path, "DensePose"),
+        schp_ckpt=os.path.join(repo_path, "SCHP"),
+        device="cuda"
+    )
+
+    person_image = Image.open(args.person).convert("RGB")
+    cloth_image = Image.open(args.cloth).convert("RGB")
+
+    person_image = resize_and_crop(person_image, (args.width, args.height))
+    cloth_image = resize_and_padding(cloth_image, (args.width, args.height))
+
+    mask = automasker(person_image, args.cloth_type)["mask"]
+    mask = mask_processor.blur(mask, blur_factor=9)
+
+    generator = None
+    if args.seed != -1:
+        generator = torch.Generator(device="cuda").manual_seed(args.seed)
+
+    result_image = pipeline(
+        image=person_image,
+        condition_image=cloth_image,
+        mask=mask,
+        num_inference_steps=args.steps,
+        guidance_scale=args.cfg,
+        generator=generator
+    )[0]
+
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_path = os.path.join(args.output, f"{now}.png")
+    result_image.save(save_path)
+    print(save_path)
+
+
+if __name__ == "__main__":
+    main()
+    ```
 vton 안에서는 학습이 이루어지는 디렉토리입니다. 디렉토리 안에서 모델 업그레이드가 이루어지는 걸 권장합니다.
 workspace는 모델의 추론이 일어나는 준비물/결과물 폴더 입니다. results에서 도출되면 확인하면 됩니다.
 
