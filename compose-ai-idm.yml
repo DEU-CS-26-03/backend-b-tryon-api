@@ -1,0 +1,34 @@
+name: backend-b-tryon-api-idm
+
+services:
+  idm-vton:
+    build:
+      context: .
+      dockerfile: Dockerfile.idm
+    container_name: idm-vton
+    working_dir: /app/vton/IDM-VTON
+    command: ["sleep", "infinity"]
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./vton/IDM-VTON:/app/vton/IDM-VTON
+      - ./workspace:/app/workspace
+      - ./models:/app/models
+    environment:
+      HF_HOME: /app/models/hf-cache
+      TRANSFORMERS_CACHE: /app/models/hf-cache
+      TORCH_HOME: /app/models/torch-cache
+      CUDA_VISIBLE_DEVICES: "0"
+      PYTHONUNBUFFERED: "1"
+    shm_size: "8gb"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
