@@ -3,7 +3,7 @@
 ---
 다음 명령어로 CatVTON 설치해서 환경 맞추시면 됩니다.
 
-*/git clone https://github.com/Zheng-Chong/CatVTON.git .\vton\CatVTON/*
+*git clone https://github.com/Zheng-Chong/CatVTON.git .\vton\CatVTON*
 
 본 셋팅은 rtx5060 기준이기 때문에 본인 셋팅 확인하시고 docker 파일들 변경하세요
 
