@@ -1,0 +1,9 @@
+.idea
+__pycache__
+*.pyc
+workspace/results
+workspace/temp
+workspace/uploads
+models
+mock
+.git

@@ -2,26 +2,30 @@
 services:
   python-app:
     build:
-      context: .             # ← ./python → . (리포지토리 루트)
+      context: .
       dockerfile: Dockerfile
     container_name: capstone-python
     restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
-      TRYON_MODE: ${TRYON_MODE:-mock}   # ← USE_MOCK → TRYON_MODE (config.py와 통일)
-      REDIS_HOST: capstone-redis        # ← 다른 compose의 redis 컨테이너명으로 접근
+      APP_ENV: ${APP_ENV:-local}
+      TRYON_MODE: ${TRYON_MODE:-real}
+      REDIS_HOST: capstone-redis
       TZ: Asia/Seoul
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      HF_HOME: /app/models/hf-cache
     volumes:
-      - ./workspace/uploads:/app/workspace/uploads   # ← ./python/workspace/...
+      - ./workspace/uploads:/app/workspace/uploads
       - ./workspace/results:/app/workspace/results
       - ./workspace/temp:/app/workspace/temp
-      - ./mock:/app/mock                             # ← ./python/mock
-      - ./models:/app/models                         # ← ./python/models
-
-    #networks:
-     # - capstone-net   # ← 다른 compose와 동일한 네트워크 공유
-
-#networks:
- # capstone-net:
-  #  external: true   # ← 다른 compose에서 이미 생성된 네트워크를 참조
+      - ./mock:/app/mock
+      - ./models:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
