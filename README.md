@@ -2,7 +2,8 @@
 
 ---
 다음 명령어로 CatVTON 설치해서 환경 맞추시면 됩니다.
-git clone https://github.com/Zheng-Chong/CatVTON.git .\vton\CatVTON
+
+*/git clone https://github.com/Zheng-Chong/CatVTON.git .\vton\CatVTON/*
 
 본 셋팅은 rtx5060 기준이기 때문에 본인 셋팅 확인하시고 docker 파일들 변경하세요
 
@@ -107,7 +108,8 @@ def main():
 
 if __name__ == "__main__":
     main()
-    ```
+```
+
 vton 안에서는 학습이 이루어지는 디렉토리입니다. 디렉토리 안에서 모델 업그레이드가 이루어지는 걸 권장합니다.
 workspace는 모델의 추론이 일어나는 준비물/결과물 폴더 입니다. results에서 도출되면 확인하면 됩니다.
 
