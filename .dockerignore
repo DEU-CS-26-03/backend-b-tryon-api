@@ -1,9 +1,17 @@
-.idea
-__pycache__
-*.pyc
-workspace/results
-workspace/temp
-workspace/uploads
-models
-mock
 .git
+.gitignore
+.idea
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+models/
+workspace/
+
+# 중요: 아래는 제외하지 마세요
+# app/
+# vton/
+# requirements.txt
+# Dockerfile.idm

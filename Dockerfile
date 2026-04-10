@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 
@@ -10,32 +10,49 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
 COPY vton/CatVTON/requirements.txt /tmp/catvton-requirements.txt
-RUN grep -vE '^(torch|torchvision|torchaudio)(==|>=|<=|$)' /tmp/catvton-requirements.txt > /tmp/catvton-requirements-no-torch.txt
-RUN pip install --no-cache-dir -r /tmp/catvton-requirements-no-torch.txt
+RUN grep -vE '^(torch|torchvision|torchaudio)(==|>=|<=|$)' /tmp/catvton-requirements.txt > /tmp/catvton-requirements-no-torch.txt && \
+    python -m pip install --no-cache-dir -r /tmp/catvton-requirements-no-torch.txt || true
 
-RUN pip install --no-cache-dir \
-    torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 \
+RUN python -m pip install --no-cache-dir \
+    torch==2.7.1 \
+    torchvision==0.22.1 \
+    torchaudio==2.7.1 \
     --index-url https://download.pytorch.org/whl/cu128
 
-RUN pip install --no-cache-dir accelerate==0.32.1
-RUN pip install --no-cache-dir "transformers>=4.53.1"
+RUN python -m pip install --no-cache-dir \
+    diffusers==0.38.0.dev0 \
+    transformers==4.53.1 \
+    accelerate==0.34.2 \
+    huggingface_hub==0.36.2 \
+    peft \
+    numpy \
+    pillow
 
-COPY app/ ./app/
-COPY vton/ ./vton/
+COPY app/ /app/app/
+COPY vton/ /app/vton/
 
-RUN mkdir -p /app/workspace/uploads \
-             /app/workspace/results \
-             /app/workspace/temp \
-             /app/models/hf-cache
+RUN mkdir -p \
+    /app/workspace/uploads \
+    /app/workspace/results \
+    /app/workspace/temp \
+    /app/models/hf-cache \
+    /app/models/torch-cache
 
-EXPOSE 8000
+ENV HF_HOME=/app/models/hf-cache
+ENV HUGGINGFACE_HUB_CACHE=/app/models/hf-cache
+ENV TORCH_HOME=/app/models/torch-cache
+ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 7860
+
+CMD ["sleep", "infinity"]
