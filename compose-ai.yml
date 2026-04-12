@@ -1,0 +1,25 @@
+# 실행 시 docker compose -f compose-ai.yml up -d --build
+name: backend-b-tryon-api-catvton
+
+services:
+  catvton:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catvton
+    working_dir: /app/vton/CatVTON
+    command: ["sleep", "infinity"]
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./vton/CatVTON:/app/vton/CatVTON
+      - ./workspace:/app/workspace
+      - ./models:/app/models
+    environment:
+      HF_HOME: /app/models/hf-cache
+      HUGGINGFACE_HUB_CACHE: /app/models/hf-cache
+      TORCH_HOME: /app/models/torch-cache

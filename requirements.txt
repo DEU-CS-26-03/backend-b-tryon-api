@@ -1,0 +1,14 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart
+pydantic
+pillow
+
+rembg
+opencv-python
+numpy
+
+torch
+torchvision
+yacs
+scipy
