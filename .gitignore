@@ -1,0 +1,26 @@
+# --- [JetBrains IDE 개인 설정 및 요청 무시] ---
+.idea/
+*.iml
+/shelf/
+/workspace.xml
+/queries/
+/dataSources/
+/dataSources.local.xml
+/httpRequests/
+
+# --- [AI 가상피팅 초고용량 모델 및 가상환경 차단] ---
+**/.venv/
+**/venv/
+**/env/
+venv/
+env/
+__pycache__/s
+*.safetensors
+*.bin
+*.pt
+*.pth
+ckpts/
+models/
+SCHP/
+VITON-HD/
+DressCode/

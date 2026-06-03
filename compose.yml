@@ -1,0 +1,73 @@
+name: capstone-ai-local
+
+networks:
+  capstone-net:
+    driver: bridge
+
+volumes:
+  torch-model-cache:
+
+services:
+  python-app:
+    build:
+      context: .
+      dockerfile: python/Dockerfile
+    container_name: capstone-python
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    environment:
+      TZ: Asia/Seoul
+      PYTHONPATH: /app:/app/vton/catvton
+      HF_HOME: /app/models/hf-cache
+      HUGGINGFACE_HUB_CACHE: /app/models/hf-cache
+      TORCH_HOME: /app/models/torch-cache
+      PUBLIC_BASE_URL: https://urchin-evil-reborn.ngrok-free.dev
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173,http://localhost:8080
+      TRYON_MODE: real
+      APP_ENV: local
+    volumes:
+      - ./python/app:/app/app
+      - ./python/vton:/app/vton
+      - ./python/workspace:/app/workspace
+      - ./python/models:/app/models                   # 기존 유지
+      - torch-model-cache:/app/models/torch-cache     # named volume
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - capstone-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: capstone-ngrok
+    depends_on:
+      python-app:
+        condition: service_healthy
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: [ "http", "--log=stdout", "python-app:8000" ]  # 로그 stdout으로 출력
+    ports:
+      - "4040:4040"
+    networks:
+      - capstone-net
+    restart: unless-stopped
+    # ngrok API로 터널 상태 확인
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:4040/api/tunnels" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
