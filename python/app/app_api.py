@@ -25,12 +25,12 @@ ATTN_CKPT     = os.getenv("ATTN_CKPT_PATH", "zhengchong/CatVTON")
 DEVICE        = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 MIXED_PREC    = os.getenv("MIXED_PRECISION", "bf16")
 TRYON_MODE    = os.getenv("TRYON_MODE", "real")
-# ★ 속도 및 메모리 안정성을 위해 시연 최적화 사이즈 적용
+# ★ 캡스톤 로컬 노트북 시연 최적화 사이즈
 WIDTH, HEIGHT = 512, 768
 
-pipeline: object | None = None
-automasker: object | None = None
-mask_processor: object | None = None
+pipeline = None
+automasker = None
+mask_processor = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -80,11 +80,15 @@ def health():
 async def infer(
         person_image: UploadFile = File(...),
         cloth_image: UploadFile = File(...),
-        cloth_type: str = Form("upper"), # 프론트->스프링->여기 로 넘어옴
+        cloth_type: str = Form("upper"),
         num_inference_steps: int = Form(50),
         guidance_scale: float = Form(2.5),
         seed: int = Form(42)
 ):
+    # ★ 방어 1: 추론 시작 전 이전 찌꺼기 메모리 강제 반환 (OOM 방지)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     try:
         person_bytes = await person_image.read()
         cloth_bytes = await cloth_image.read()
@@ -106,7 +110,6 @@ async def infer(
         person_img = resize_and_crop(person_img, (WIDTH, HEIGHT))
         garment_img = resize_and_padding(garment_img, (WIDTH, HEIGHT))
 
-        # ★ 핵심 추가됨: 입력값을 CatVTON이 이해할 수 있는 3가지 타입으로 강제 매핑
         category_map = {
             "upper": "upper",
             "top": "upper",
@@ -120,14 +123,13 @@ async def infer(
         target_type = category_map.get(cloth_type.lower(), "upper")
         print(f"[Inference] 원본 타입: {cloth_type} -> 매핑된 타겟: {target_type}")
 
-        # 매핑된 target_type에 따라 마스킹할 부위가 달라짐 (상/하/전신)
         mask = automasker(person_img, target_type)["mask"]
 
         from PIL import ImageFilter
         mask = mask.filter(ImageFilter.GaussianBlur(radius=9))
 
         generator = torch.Generator(device=DEVICE).manual_seed(seed)
-        result_image: Image.Image = pipeline(
+        result_image = pipeline(
             image=person_img,
             condition_image=garment_img,
             mask=mask,
@@ -140,8 +142,17 @@ async def infer(
         result_image.save(buf, format="JPEG", quality=90)
 
         print(f"[Inference] {target_type} 추론 완료! Spring으로 이미지 전송.")
+
+        # ★ 방어 2: 정상 완료 직후 즉시 메모리 반환
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         return Response(content=buf.getvalue(), media_type="image/jpeg")
 
     except Exception as e:
+        # ★ 방어 3: 에러 시에도 메모리를 쥐고 뻗지 않도록 강제 반환
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": str(e), "message": "GPU 메모리 부족 또는 추론 오류"})
